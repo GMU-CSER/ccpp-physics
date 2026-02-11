@@ -103,9 +103,11 @@
 !IVAI
      &     ntqv,dtend,dtidx,index_of_temperature,index_of_x_wind,       &
      &     index_of_y_wind,index_of_process_pbl,gen_tend,ldiag3d,       &
-     &     errmsg,errflg)
+     &     errmsg,errflg,                                               &
 !IVAI: aux arrays
-!     &     naux2d,naux3d,aux2d,aux3d)
+     &     naux2d,naux3d,aux2d,aux3d,                                   &
+!IVAI
+     &     dkt_can, dku_can)
 
 !
       use machine  , only : kind_phys
@@ -132,7 +134,8 @@
       logical, intent(in)  :: do_canopy, cplaqm
 !IVAI: canopy inputs
       real(kind=kind_phys), optional, intent(in)  :: claie(:), cfch(:), &
-     &                     cfrt(:), cclu(:), cpopu(:)
+     &                     cfrt(:), cclu(:), cpopu(:),                  &
+     &                     dkt_can(:,:), dku_can(:,:)
       !----------------------------------------------
       real(kind=kind_phys), intent(inout) :: dv(:,:),     du(:,:),      &
      &                     tdt(:,:),    rtg(:,:,:),    tkeh(:,:)
@@ -176,6 +179,11 @@
 !
       character(len=*), intent(out) :: errmsg
       integer,          intent(out) :: errflg
+
+!IVAI: aux arrays
+      integer,         optional, intent(in)    :: naux2d, naux3d
+      real(kind_phys), optional, intent(inout) :: aux2d(:,:)
+      real(kind_phys), optional, intent(inout) :: aux3d(:,:,:)
 
 !For passing dku to the dyn_core (SA-3D-TKE scheme)
        real(kind=kind_phys), intent(out) ::
@@ -1721,28 +1729,40 @@
 !
       endif !sa3dtke
 
-!PCC_CANOPY------------------------------------
       if (do_canopy .and. cplaqm) then
+        if (present(dku_can) .and. present(dkt_can)) then
 
 !IVAI
-!        print*, 'SATMEDMF_RUN: CLAIE = ', claie(:)
-!        print*, 'SATMEDMF_RUN: CFCH = ' , cfch (:)
-!        print*, 'SATMEDMF_RUN: CFRT = ' , cfrt (:)
-!        print*, 'SATMEDMF_RUN: CCLU = ' , cclu (:)
-!        print*, 'SATMEDMF_RUN: CPOPU= ' , cpopu(:)
-! 2D aux arrays: canopy data in diffusion
-!        aux2d(:,1) = cfch (:)
-!        aux2d(:,2) = claie(:)
-!        aux2d(:,3) = cfrt(:)
+! Output 3D pbl diags
+!        if (present(aux3d)) then
+!           aux3d(:,:,5) = dku(:,:) ! Out
+!           aux3d(:,:,3) = dkt(:,:) ! Out
+!        endif
 
-! 3D aux arrays: before canopy correction
-!        aux3d(:,:,1) = dkq(:,:)
-!        aux3d(:,:,2) = dkt(:,:)
-!        aux3d(:,:,3) = dku(:,:)
+! 3-Layer Explicit Sub-Canopy effect
+          dku(:,1:km) = dku_can(:,1:km)
+          dkt(:,1:km) = dkt_can(:,1:km)
+          dkq(:,1:km) = prtke * dkt_can(:,1:km)
+
+        else
+
+! Integrated canopy scaling effect
 !IVAI
-        do k = 1, km1-1
+!        if (present(aux2d)) then
+!           aux2d(:,1) = cfch (:)
+!           aux2d(:,2) = claie(:)
+!           aux2d(:,3) = cfrt(:)
+!        endif
 
-          kount=0 !IVAI
+!        if (present(aux3d)) then
+!           aux3d(:,:,1) = dkq(:,:)
+!           aux3d(:,:,2) = dkt(:,:)
+!           aux3d(:,:,3) = dku(:,:)
+!        endif
+!IVAI
+          do k = 1, km1-1
+
+            kount=0 !IVAI
           ZOOOX(:) = 1.  ! IVAI
 
           do i = 1, im
@@ -1926,7 +1946,7 @@
           kount = kount + 1 !IVAI
 
         enddo !k
-
+      endif
       endif !do_canopy .and. cplaqm
 
 !> ## Compute TKE.
@@ -2494,7 +2514,7 @@ c
             rtg(i,k,ntke) = rtg(i,k,ntke)+qtend
          enddo
       enddo
-      if(ldiag3d) then
+      if(ldiag3d .and. present(dtend)) then
          idtend = dtidx(ntke+100,index_of_process_pbl)
          if(idtend>0) then
             dtend(1:im,1:km,idtend) = dtend(1:im,1:km,idtend) +         &
@@ -2943,7 +2963,7 @@ c
         dqsfc(i) = rho_a(i) * hvap * evap(i)
       enddo
 !
-      if(ldiag3d .and. .not. gen_tend) then
+      if(ldiag3d .and. .not. gen_tend .and. present(dtend)) then
         idtend = dtidx(index_of_temperature,index_of_process_pbl)
         if(idtend>=1) then
           do  k = 1,km
@@ -2975,7 +2995,7 @@ c
             enddo
           enddo
         enddo
-        if(ldiag3d .and. .not. gen_tend) then
+        if(ldiag3d .and. .not. gen_tend .and. present(dtend)) then
           ! Send tendencies for all tracers that were selected.
           do n = 2, ntrac1
             is = (n-1) * km
@@ -3005,7 +3025,7 @@ c
             tdt(i,k) = tdt(i,k) + dspfac * ttend
           enddo
         enddo
-        if(ldiag3d .and. .not. gen_tend) then
+        if(ldiag3d .and. .not. gen_tend .and. present(dtend)) then
           idtend = dtidx(index_of_temperature,index_of_process_pbl)
           if(idtend>=1) then
             do k = 1,km1
@@ -3105,7 +3125,7 @@ c
         enddo
       endif
 !
-      if(ldiag3d .and. .not. gen_tend) then
+      if(ldiag3d .and. .not. gen_tend .and. present(dtend)) then
         idtend = dtidx(index_of_x_wind,index_of_process_pbl)
         if(idtend>=1) then
           do k = 1,km
