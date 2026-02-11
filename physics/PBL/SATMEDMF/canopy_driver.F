@@ -7,7 +7,7 @@
       use mfscuq_mod
       !PCC_CANOPY_utilities
       use canopy_utils_mod
-      use satmedmfvdifq_can_mod
+      use satmedmfvdifq, only : satmedmfvdifq_run
       use canopy_mask_mod
 
 ! =====================
@@ -1049,9 +1049,9 @@
          endif
 
 !
-!>  - Call satmedmfvdifq_can(), which is ...
+!>  - Call satmedmfvdifq_run(), which is ...
 !!    to take into account ...
-         CALL satmedmfvdifq_can(im,km,ntrac,ntcw,ntrw,
+         CALL satmedmfvdifq_run(im,km,ntrac,ntcw,ntrw,
      &     ntiw,ntke,grav,pi,rd,cp,rv,hvap,hfus,fv,eps,epsm1,
 !The following three variables are for SA-3D-TKE
      &     def_1,def_2,def_3,sa3dtke,dum3d_h,dum3d_e,
@@ -1068,7 +1068,6 @@
      &     dspheat,
      &     dusfc_can,dvsfc_can,dtsfc_can,dqsfc_can,hpbl_can,              ! Out
      &     dkt,     dku,     tkeh_can,                                    ! Out/Out:tkeh_can
-     &     dkt_can,dku_can,                                               ! In: canopy inputs
      &     kinver,xkzm_m,xkzm_h,xkzm_s,dspfac,bl_upfr,bl_dnfr,
      &     rlmx,elmx,sfc_rlm,tc_pbl,use_lpt,
      &     do_canopy, cplaqm, claie, cfch, cfrt, cclu, cpopu,
@@ -1077,7 +1076,8 @@
      &     dtidx,index_of_temperature,index_of_x_wind,
      &     index_of_y_wind,index_of_process_pbl,gen_tend,ldiag3d,
      &     errmsg,errflg, 
-     &     naux2d,naux3d,aux2d,aux3d)
+     &     naux2d,naux3d,aux2d,aux3d,
+     &     dkt_can,dku_can)
 
 ! Set non-canopy columns to resolved values
 ! NB. Only vars not ALREADY defined in non-canopy columns
