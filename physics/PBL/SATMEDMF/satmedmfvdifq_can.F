@@ -83,6 +83,7 @@
       use canopy_mask_mod
 !
       implicit none
+      real(kind=kind_phys), parameter :: epsilon = 1.e-10
 !
 !----------------------------------------------------------------------
       integer, intent(in)  :: im, km, ntrac, ntcw, ntrw, ntiw,
@@ -401,7 +402,7 @@
 
 !> ## Compute preliminary variables from input arguments
       dt2  = delt
-      rdt = 1. / dt2
+      rdt = 1. / max(dt2,epsilon)
 !
 ! the code is written assuming ntke=ntrac
 ! if ntrac > ntke, the code needs to be modified
@@ -468,7 +469,7 @@
 !>  - Compute reciprocal of \f$ \Delta z \f$ (rdzt)
       do k = 1,km1
         do i=1,im
-          rdzt(i,k) = 1.0 / (zl(i,k+1) - zl(i,k))
+          rdzt(i,k) = 1.0 / max(zl(i,k+1) - zl(i,k), epsilon)
           prn(i,k)  = pr0
         enddo
       enddo
@@ -486,7 +487,7 @@
 !
       do i=1,im
         kx1(i) = 1
-        tx1(i) = 1.0 / prsi(i,1)
+        tx1(i) = 1.0 / max(prsi(i,1), epsilon)
         tx2(i) = tx1(i)
         if(gdx(i) >= xkgdx) then
           xkzm_hx(i) = xkzm_h
@@ -519,7 +520,7 @@
               xkzmo(i,k) = xkzm_mx(i)
               kx1(i)     = k + 1
             else
-              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / prsi(i,k)
+              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / max(prsi(i,k), epsilon)
               tem1 = 1.0 - prsi(i,k+1) * tx2(i)
               tem1 = tem1 * tem1 * 5.0
               xkzmo(i,k) = xkzm_mx(i) * min(1.0, exp(-tem1))

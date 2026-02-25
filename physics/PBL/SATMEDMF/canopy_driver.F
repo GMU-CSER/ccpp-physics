@@ -545,7 +545,7 @@
 
 !> ## Compute preliminary variables from input arguments
       dt2  = delt
-      rdt = 1. / dt2
+      rdt = 1. / max(dt2,epsilon)
 !
 ! the code is written assuming ntke=ntrac
 ! if ntrac > ntke, the code needs to be modified
@@ -1530,37 +1530,32 @@ c
 
                    kc_can   = kc
                     FZI05    = 1./
-!                             max(zi_can3 (i,kc+1) - 
-!     &                           zi_can3 (i,kc), epsilon) *
-     &                           (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                        max(zi_can3 (i,kc+1) -
+     &                            zi_can3 (i,kc), epsilon) *
      &                           (ZI05 - zi_can3 (i,kc))
 
                    TTCORR   = (t2_can3 (i,kc+1) - t2_can3 (i,kc))/
-!     &                        max(zi_can3 (i,kc+1) - 
-!     &                            zi_can3 (i,kc), epsilon) *
-     &                        (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                        max(zi_can3 (i,kc+1) -
+     &                            zi_can3 (i,kc), epsilon) *
      &                        (ZI05    - zi_can3 (i,kc))
 
 ! U-Wind/V-Wind after diffusion on canopy layers
                    UUCAN  =  u2_can3 (i,kc  ) +
      &                      (u2_can3 (i,kc+1) - u2_can3 (i,kc))/
-!     &                      max(zi_can3 (i,kc+1) - 
-!     &                          zi_can3 (i,kc), epsilon) *
-     &                      (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                      max(zi_can3 (i,kc+1) -
+     &                          zi_can3 (i,kc), epsilon) *
      &                      (ZI05      - zi_can3 (i,kc))
 
                    VVCAN  =  v2_can3 (i,kc  ) +
      &                      (v2_can3 (i,kc+1) - v2_can3 (i,kc))/
-!     &                      max(zi_can3 (i,kc+1) - 
-!     &                          zi_can3 (i,kc), epsilon) *
-     &                      (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                      max(zi_can3 (i,kc+1) -
+     &                          zi_can3 (i,kc), epsilon) *
      &                      (ZI05             - zi_can3 (i,kc))
 ! Temperature after diffusion on canopy layers
                    TTCAN  =  t2_can3 (i,kc  ) +
      &                      (t2_can3 (i,kc+1) - t2_can3 (i,kc))/
-!     &                      max(zi_can3 (i,kc+1) - 
-!     &                          zi_can3 (i,kc), epsilon) *
-     &                      (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                      max(zi_can3 (i,kc+1) -
+     &                          zi_can3 (i,kc), epsilon) *
      &                      (ZI05      - zi_can3 (i,kc))
 
 
@@ -1568,17 +1563,15 @@ c
                    TKECAN =  q2_can3 (i,kc, ntke) +
      &                      (q2_can3 (i,kc+1, ntke) -
      &                       q2_can3 (i,kc  , ntke))/
-!     &                      max(zi_can3 (i,kc+1) - 
-!     &                          zi_can3 (i,kc), epsilon) *
-     &                      (zi_can3 (i,kc+1) - zi_can3 (i,kc)) *
+     &                      max(zi_can3 (i,kc+1) -
+     &                          zi_can3 (i,kc), epsilon) *
      &                      (ZI05      - zi_can3 (i,kc))
 
 ! TKE half layers
                    TKEHCAN =  tkeh_can (i,kc  ) +
      &                      (tkeh_can (i,kc+1) - tkeh_can (i,kc))/
-!     &                      max(zi_can3(i,kc+1) - 
-!     &                          zi_can3(i,kc), epsilon) *
-     &                      (  zi_can3(i,kc+1) -   zi_can3(i,kc)) *
+     &                      max(zi_can3(i,kc+1) -
+     &                          zi_can3(i,kc), epsilon) *
      &                      (ZI05      -   zi_can3(i,kc))
 
                  END IF !  "zi_can3(kc) < ZI05 <= zi_can3(kc+1)"
@@ -1614,46 +1607,50 @@ c
 
 ! IntegrateTrapezoid = sum((y(1+1:n-0) + y(1+0:n-1))*
 !     &                            (x(1+1:n-0) - x(1+0:n-1)))/2
-              ZZ_INT= IntegrateTrapezoid(
+              IF (COUNTCAN .EQ. 1) THEN
+                ZZ_INT = ZCANX(COUNTCAN)
+                UU_INT = UUX(COUNTCAN)
+                VV_INT = VVX(COUNTCAN)
+                TT_INT = TTX(COUNTCAN)
+                TKE_INT = TKEX(COUNTCAN)
+                TKEH_INT = TKEHX(COUNTCAN)
+              ELSE
+                ZZ_INT= IntegrateTrapezoid(
      &                  ZCANX(COUNTCAN:1:-1), ZOOOX(COUNTCAN:1:-1))
 
 ! U-wind
-              UU_INT = IntegrateTrapezoid(
+                UU_INT = IntegrateTrapezoid(
      &                   ZCANX(COUNTCAN:1:-1) ,
      &                     UUX(COUNTCAN:1:-1) ) /
-!    &                     max(ZZ_INT, epsilon)
-     &                     ZZ_INT
+     &                     max(ZZ_INT, epsilon)
 
 ! V-wind
-              VV_INT = IntegrateTrapezoid(
+                VV_INT = IntegrateTrapezoid(
      &                   ZCANX(COUNTCAN:1:-1) ,
      &                     VVX(COUNTCAN:1:-1) ) /
-!    &                     max(ZZ_INT, epsilon)
-     &                     ZZ_INT
+     &                     max(ZZ_INT, epsilon)
 
 ! Temp
-              TT_INT = IntegrateTrapezoid(
+                TT_INT = IntegrateTrapezoid(
      &                   ZCANX(COUNTCAN:1:-1) ,
      &                     TTX(COUNTCAN:1:-1)   ) /
-!    &                     max(ZZ_INT, epsilon)
-     &                     ZZ_INT
+     &                     max(ZZ_INT, epsilon)
 
 ! TKE
-              TKE_INT = IntegrateTrapezoid(
+                TKE_INT = IntegrateTrapezoid(
      &                    ZCANX(COUNTCAN:1:-1) ,
      &                     TKEX(COUNTCAN:1:-1)  ) /
-!    &                     max(ZZ_INT, epsilon)
-     &                     ZZ_INT
+     &                     max(ZZ_INT, epsilon)
 
 ! TKEH
-              TKEH_INT= IntegrateTrapezoid(
+                TKEH_INT= IntegrateTrapezoid(
      &                     ZCANX(COUNTCAN:1:-1) ,
      &                     TKEHX(COUNTCAN:1:-1) ) /
-!    &                     max(ZZ_INT, epsilon)
-     &                     ZZ_INT
+     &                     max(ZZ_INT, epsilon)
+              END IF
 
 ! Sum
-              TT_SUM = sum(  TTX(COUNTCAN:1:-1))/COUNTCAN
+              TT_SUM = sum(  TTX(COUNTCAN:1:-1))/max(COUNTCAN,1)
 
 ! U-wind/V-wind Canopy Columns
               u2_mod (i,k)   = UU_INT     ! after "canopy-to-resolved"
