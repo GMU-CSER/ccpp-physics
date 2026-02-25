@@ -489,6 +489,7 @@
      &       frctc2r   (km+nkc, 2, im)
 
 !!
+      real(kind=kind_phys), parameter :: epsilon = 1.e-10
       parameter(bfac=100.)
       parameter(wfac=7.0,cfac=4.5)
       parameter(gamcrt=3.,gamcrq=0.,sfcfrac=0.1)
@@ -512,8 +513,6 @@
       parameter(ck1=0.15,ch1=0.15)
       parameter(cs0=0.4,csmf=0.5)
       parameter(rchck=1.5,ndt=20)
-      real(kind=kind_phys), parameter :: epsilon = 1.e-10
-
 ! Number of combined canopy plus resolved model layers
       nkt  = km + nkc   ! # of resolved model layers plus canopy layers
       nkt1 = nkt - 1

@@ -367,8 +367,8 @@
                nfrct(k,    i) = 1
                ifrct(k, 1, i) = kk
 !              frctr2c(k, 1, i) = (zmom_can(i, k) - zmom_can(i, k+1)) / max(zmom(kk) - zmom(kk+1), epsilon)
-               frctr2c(k, 1, i) = (zmom_can(i, k) - zmom_can(i, k+1)) /
-     &                            max(zmom(kk) - zmom(kk+1), epsilon)
+               frctr2c(k, 1, i) = (zmom_can(i, k) - zmom_can(i, k+1)) / &
+                                  max(zmom(kk) - zmom(kk+1), epsilon)
                frctc2r(k, 1, i) = 1.0  ! canopy layer resides within resolved model layer
             end if
 !  Resolved layer boundary splits a combined canopy layer:
@@ -384,19 +384,19 @@
 !  Fraction of resolved model layer contributing to canopy layer:
 !              frctr2c(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) / max(zmom(kk) - zmom(kk+1), epsilon)
 !              frctr2c(k, 2, i) = (zmom_can(i, k) - zmom(kk)) / max(zmom(kk-1) - zmom(kk), epsilon)
-               frctr2c(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) /
-     &                            max(zmom(kk) - zmom(kk+1), epsilon)
-               frctr2c(k, 2, i) = (zmom_can(i, k) - zmom(kk)) /
-     &                            max(zmom(kk-1) - zmom(kk), epsilon)
+               frctr2c(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) / &
+                                  max(zmom(kk) - zmom(kk+1), epsilon)
+               frctr2c(k, 2, i) = (zmom_can(i, k) - zmom(kk)) / &
+                                  max(zmom(kk-1) - zmom(kk), epsilon)
 !  Fraction of canopy layer contributing to resolved model layer:
 !              frctc2r(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) / max(zmom_can(i, k) - zmom_can(i, k+1), epsilon)
 !              frctc2r(k, 2, i) = (zmom_can(i, k) - zmom(kk)) / max(zmom_can(i, k) - zmom_can(i, k+1), epsilon)
-               frctc2r(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) /
-     &                            max(zmom_can(i, k) - zmom_can(i, k+1),
-     &                                epsilon)
-               frctc2r(k, 2, i) = (zmom_can(i, k) - zmom(kk)) /
-     &                            max(zmom_can(i, k) - zmom_can(i, k+1),
-     &                                epsilon)
+               frctc2r(k, 1, i) = (zmom(kk) - zmom_can(i, k+1)) / &
+                                  max(zmom_can(i, k) - zmom_can(i, k+1), &
+                                      epsilon)
+               frctc2r(k, 2, i) = (zmom_can(i, k) - zmom(kk)) / &
+                                  max(zmom_can(i, k) - zmom_can(i, k+1), &
+                                      epsilon)
             end if
          end do
       end do
@@ -510,8 +510,8 @@
             ! Paul's massairmod is our massair
             ! Paul's mass_resolved is our mass_resolved
 !           mmr_resolved(k) = mass_resolved(k) / max(massair(i, k), epsilon)  ! ug kg-1
-            mmr_resolved(k) = mass_resolved(k) / max(massair(i, k),
-     &                                               epsilon)  ! ug kg-1
+            mmr_resolved(k) = mass_resolved(k) / max(massair(i, k), &
+                                                     epsilon)  ! ug kg-1
 
 ! (3a) Convert back m.m.r. [ug kg-1] to [kg kg-1]
             ! NB. This is Q1_MOD to be used in gas-phase hrdriver call on canopy columns
@@ -656,8 +656,8 @@
             do k = 1, nkt
                ! Paul's massaircan is our massair_can
 !              mmr_canopy(k) = mass_canopy(k) / max(massair_can(i, k), epsilon)  ! ug kg-1
-               mmr_canopy(k) = mass_canopy(k) / max(massair_can(i, k),
-     &                                              epsilon)  ! ug kg-1
+               mmr_canopy(k) = mass_canopy(k) / max(massair_can(i, k), &
+                                                     epsilon)  ! ug kg-1
 
 ! Output diags
 !               ! if(S == 11) mmr_o3_can(i,k) = mmr_canopy(k) ! nto3=11 "resolved_to_canopy"

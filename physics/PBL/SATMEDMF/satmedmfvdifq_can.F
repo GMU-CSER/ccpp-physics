@@ -1578,7 +1578,8 @@
             endif
 ! calculate km, kh, and kq for LES
             dku_les(i,k)=0.1*elm_les*sqrt(tkeh(i,k))
-            dkt_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))*dku_les(i,k)
+            dkt_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))
+     &                   *dku_les(i,k)
             dkq_les(i,k)=dkt_les(i,k)
             dku_les(i,k) = min(dku_les(i,k),dkmaxles)
             dkt_les(i,k) = min(dkt_les(i,k),dkmaxles)
@@ -1678,7 +1679,8 @@
             ele_les(i,k)=elm_les
 ! calculate km, kh, and kq for LES
             dku_les(i,k)=0.1*elm_les*sqrt(tke(i,k))
-            dkq_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))*dku_les(i,k)
+            dkq_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))
+     &                   *dku_les(i,k)
             dku_les(i,k) = min(dku_les(i,k),dkmaxles)
             dkq_les(i,k) = min(dkq_les(i,k),dkmaxles)
           enddo
@@ -2034,14 +2036,14 @@
                 rrkp = 0.
                 if(abs(q_diff(i,k,n)) > 1.e-22)
      &                 rrkp = q_diff(i,k+1,n) / q_diff(i,k,n)
-                phkp = (rrkp+abs(rrkp)) / 1.+abs(rrkp)
+               phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
                 q_half(i,k,n) = q1(i,k+1,n) +
      &                     phkp*(qh(i,k,n)-q1(i,k+1,n))
               elseif (tem < 0.) then
                 rrkp = 0.
                 if(abs(q_diff(i,k,n)) > 1.e-22)
      &                 rrkp = q_diff(i,k-1,n) / q_diff(i,k,n)
-                phkp = (rrkp+abs(rrkp)) / 1.+abs(rrkp)
+               phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
                 q_half(i,k,n) = q1(i,k,n) +
      &                    phkp*(qh(i,k,n)-q1(i,k,n))
               endif
@@ -2091,14 +2093,14 @@
               rrkp = 0.
               if(abs(e_diff(i,k)) > 1.e-22)
      &               rrkp = e_diff(i,k+1) / e_diff(i,k)
-              phkp = (rrkp+abs(rrkp)) / 1.+abs(rrkp)
+             phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
               e_half(i,k) = te(i,k+1) +
      &                   phkp*(tei(i,k)-te(i,k+1))
             elseif (tem < 0.) then
               rrkp = 0.
               if(abs(e_diff(i,k)) > 1.e-22)
      &               rrkp = e_diff(i,k-1) / e_diff(i,k)
-              phkp = (rrkp+abs(rrkp)) / 1.+abs(rrkp)
+             phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
               e_half(i,k) = te(i,k) +
      &                  phkp*(tei(i,k)-te(i,k))
             endif
@@ -2889,13 +2891,17 @@ c
       if (use_oceanuv) then
         do i = 1,im
           spd1_m=sqrt( (u1(i,1)-usfco(i))**2+(v1(i,1)-vsfco(i))**2 )
-          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))/max(spd1_m, epsilon)
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))/max(spd1_m, epsilon)
+          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))
+     &               /max(spd1_m, epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))
+     &               /max(spd1_m, epsilon)
         enddo
       else
         do i = 1,im
-          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/max(spd1(i), epsilon)
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/max(spd1(i), epsilon)
+          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/
+     &               max(spd1(i), epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/
+     &               max(spd1(i), epsilon)
         enddo
       endif
 !
