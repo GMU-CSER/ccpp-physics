@@ -375,6 +375,7 @@
       parameter(vc0=1.0,zc0=1.0)
       parameter(cs0=0.4,csmf=0.5)
       parameter(rchck=1.5,ndt=20)
+      real(kind=kind_phys), parameter :: epsilon = 1.e-10
       !The following variables are for SA-3D-TKE
       parameter(cpl1=0.280,cpl2=0.870,cpl3=0.913)
       parameter(cpl4=0.153,cpl5=0.278,cpl6=0.720)
@@ -435,7 +436,7 @@
 
 !> ## Compute preliminary variables from input arguments
       dt2  = delt
-      rdt = 1. / dt2
+      rdt = 1. / max(dt2,epsilon)
 !
 ! the code is written assuming ntke=ntrac
 ! if ntrac > ntke, the code needs to be modified
@@ -502,7 +503,7 @@
 !>  - Compute reciprocal of \f$ \Delta z \f$ (rdzt)
       do k = 1,km1
         do i=1,im
-          rdzt(i,k) = 1.0 / (zl(i,k+1) - zl(i,k))
+          rdzt(i,k) = 1.0 / max(zl(i,k+1) - zl(i,k), epsilon)
           prn(i,k)  = pr0
         enddo
       enddo
@@ -520,7 +521,7 @@
 !
       do i=1,im
         kx1(i) = 1
-        tx1(i) = 1.0 / prsi(i,1)
+        tx1(i) = 1.0 / max(prsi(i,1), epsilon)
         tx2(i) = tx1(i)
         if(gdx(i) >= xkgdx) then
           xkzm_hx(i) = xkzm_h
@@ -553,7 +554,7 @@
               xkzmo(i,k) = xkzm_mx(i)
               kx1(i)     = k + 1
             else
-              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / prsi(i,k)
+              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / max(prsi(i,k), epsilon)
               tem1 = 1.0 - prsi(i,k+1) * tx2(i)
               tem1 = tem1 * tem1 * 5.0
               xkzmo(i,k) = xkzm_mx(i) * min(1.0, exp(-tem1))
@@ -1781,8 +1782,8 @@
 !concentrations to
 ! source distributions in vegetation canopies. Q. J. R. Meteor. Soc.
 ! (1989), 115, pp 609-632
-              MOL  = zol(i)/zl(i,k)  !Monin-Obukhov Length in layer
-              HOL = FCH/MOL  !local canopy stability parameter (hc/MOL)
+              MOL  = zol(i)/max(zl(i,k),epsilon)  !Monin-Obukhov Length in layer
+              HOL = FCH/sign(max(abs(MOL),epsilon),MOL)  !local canopy stability parameter (hc/MOL)
               ZCAN = zi(i,k+1) ! Initialize each model layer top that contains canopy (m)
                              ! Integrate across total model interface
               ZFL = ZCAN     ! Set ZFL = ZCAN
@@ -1796,7 +1797,7 @@
 
               DO WHILE (ZCAN.GE.BOTCAN)
                  ! TLCAN = Lagrangian timescale
-                 TLCAN = (FCH/ustar(i)) * (
+                 TLCAN = (FCH/max(ustar(i),epsilon)) * (
      &                   (0.256 * (ZCAN-(0.75*FCH))/FCH ) +
      &                   (0.492*EXP((-0.256*ZCAN/FCH)/0.492)) )
                  IF ( HOL .LT. -0.1 )  THEN  !STRONG UNSTABLE
@@ -1821,7 +1822,7 @@
      &               .AND. ZCAN/FCH .LE. 1.25 ) THEN
                     SIGMACAN = ustar(i) * ( 0.625 +
      &                       (0.375* COS((PI/1.06818) *
-     &                       (1.25 - (ZCAN/FCH)))) )
+     &                       (1.25 - (max(ZCAN/FCH,epsilon))))) )
                   END IF
                   IF ( ZCAN/FCH .LT. 0.175 )  THEN
                     SIGMACAN = 0.25*ustar(i)
@@ -1838,7 +1839,7 @@
                     BBCAN=(0.125*RRCAN) - 0.125
                     SIGMACAN = ustar(i) * ( AACAN +
      &                             (BBCAN * COS((PI/1.06818) *
-     &                             (1.25 - (ZCAN/FCH)))) )
+     &                             (1.25 - (max(ZCAN/FCH,epsilon))))) )
                   END IF
                   IF ( ZCAN/FCH .LT. 0.175 )  THEN
                     SIGMACAN = 0.25*ustar(i)
@@ -1907,9 +1908,9 @@
      &                                              ZCANX(COUNTCAN)
 !
 ! Comment out to turn OFF the integrated canopy effect
-              dkt(i,k)= (dkt(i,k)/EDDYVEST1) * EDDYVEST_INT !Scale dkt to resolved eddy diffusivity
-              dkq(i,k)= (dkq(i,k)/EDDYVEST1) * EDDYVEST_INT !Scale dkq to resolved eddy diffusivity
-              dku(i,k)= (dku(i,k)/EDDYVEST1) * EDDYVEST_INT !Scale dku to resolved eddy diffusivity
+              dkt(i,k)= (dkt(i,k)/max(EDDYVEST1,epsilon)) * EDDYVEST_INT !Scale dkt to resolved eddy diffusivity
+              dkq(i,k)= (dkq(i,k)/max(EDDYVEST1,epsilon)) * EDDYVEST_INT !Scale dkq to resolved eddy diffusivity
+              dku(i,k)= (dku(i,k)/max(EDDYVEST1,epsilon)) * EDDYVEST_INT !Scale dku to resolved eddy diffusivity
 
 ! Output pbl diags
 !              aux3d(i,k,4) = 1./EDDYVEST1  * EDDYVEST_INT
