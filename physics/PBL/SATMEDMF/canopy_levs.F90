@@ -1045,7 +1045,8 @@
             if (zcan3(kc) - z2(km+1) >= 2.0) then
             !  Level is below first resolved model level but above screen height
 
-               zm2 = (zcan3(kc) - z2(km+1) - 2.0) / (z2(km) - z2(km+1) - 2.0)
+               zm2 = (zcan3(kc) - z2(km+1) - 2.0) / &
+                     max(z2(km) - z2(km+1) - 2.0, epsilon)
 !              zm2 = (zcan3(kc) - z2(km+1) - 2.0) / max(z2(km) - z2(km+1) - 2.0, epsilon)
 
                td = (ta3(km)  - T2M( i ) )  * zm2
@@ -1170,13 +1171,13 @@
 ! The next few lines calculate the average value of u(z), v(z), Raupach's eqn 51,
 ! at the first resolved level model height
 ! Paul's UE is our ustar,  surface friction velocity
-         uh = ustar(i) * 3.0
+         uh = max(ustar(i), epsilon) * 3.0
          if (zr >= 1.0) then
          ! Paul's zt is our zmid (i.e. zmid(km) is zt(i,chm_nk))
          ! Paul's hc is our hcan
             uspr = ustar(i) / karman * &
-                   log((zmid3(km) - z2(km+1) - 0.75 * hcan) / &
-                   (0.07530 * hcan))
+                   log(max((zmid3(km) - z2(km+1) - 0.75 * hcan) / &
+                   max(0.07530 * hcan, epsilon), epsilon))
 !                  log(max((zmid3(km) - z2(km+1) - 0.75 * hcan) / &
 !                  (0.07530 * hcan), epsilon))
          else
@@ -1185,16 +1186,17 @@
 !  wndr is the ratio of the wind to Raupach's average us(), eqn 51.
 !  This is used to scale the wind speed with height values from eqn 51 to the current grid square
          ! Paul's WS(nk) is our spd1, wind speed at lowest model level m s-1
-         wndr = spd1(i) / uspr
+         wndr = spd1(i) / max(uspr, epsilon)
 !        wndr = spd1(i) / max(uspr, epsilon)
 !  Using Raupach's formulae for wind speed, multiplied by the above ratio, for the canopy layers:
 !
-         zr = (zcan3(kc) - z2(km+1)) / hcan
+         zr = (zcan3(kc) - z2(km+1)) / max(hcan, epsilon)
          if (zr >= 1.0) then
-            uspr = log((zcan3(kc) - z2(km+1) - 0.75 * hcan) / &
-                   (0.07530 * hcan)) * ustar(i)
+            uspr = log(max((zcan3(kc) - z2(km+1) - 0.75 * hcan) / &
+                   max(0.07530 * hcan, epsilon), epsilon)) * ustar(i)
          else
-            uspr = uh * exp(- 2.0 * (1.0 - (zcan3(kc) - z2(km+1)) / hcan))
+            uspr = uh * exp(- 2.0 * (1.0 - (zcan3(kc) - z2(km+1)) / &
+                   max(hcan, epsilon)))
          end if
 
          ws_can3(kk) = wndr * uspr
@@ -1245,21 +1247,24 @@
          else
            if(zr < 1.25) then
                sigw = ustar(i) * ( a1 + b1 * cos(pi / 1.06818 * &
-                      (1.25 - (zmid3(km) - z2(km+1)) / hcan)))
+                      (1.25 - (zmid3(km) - z2(km+1)) / max(hcan, &
+                                                            epsilon))))
            else
                sigw = ustar(i) * c1
            end if
          end if
 
 !        tl = hcan / max(ustar(i), epsilon)  * &
-         tl = hcan / ustar(i)  * &
-              (0.256 * ((zmid3(km) - z2(km+1) - 0.75 * hcan) / hcan) + &
-               0.492 * exp (-(0.256 * ((zmid3(km) - z2(km+1)) / hcan) / 0.492)))
+         tl = hcan / max(ustar(i), epsilon)  * &
+              (0.256 * ((zmid3(km) - z2(km+1) - 0.75 * hcan) / &
+                        max(hcan, epsilon)) + &
+               0.492 * exp (-(0.256 * ((zmid3(km) - z2(km+1)) / &
+                                      max(hcan, epsilon)) / 0.492)))
 ! ktr is the ratio of the resolved model diffusivity at the lowest resolved
 ! model level to that derived by Raupach's formula
 !
-         ktr =  dkt3(km) / (sigw * sigw * tl)
-         kur =  dku3(km) / (sigw * sigw * tl)
+         ktr =  dkt3(km) / max(sigw * sigw * tl, epsilon)
+         kur =  dku3(km) / max(sigw * sigw * tl, epsilon)
 !        ktr =  dkt3(km) / max(sigw * sigw * tl, epsilon)
 !        kur =  dku3(km) / max(sigw * sigw * tl, epsilon)
 
@@ -1281,16 +1286,19 @@
          else
            if(zr < 1.25) then
                sigw = ustar(i) * ( a1 + b1 * cos(pi / 1.06818 * &
-                      (1.25 - (zcan3(kc) - z2(km+1))/hcan)))
+                      (1.25 - (zcan3(kc) - z2(km+1)) / max(hcan, &
+                                                            epsilon))))
            else
                sigw = ustar(i) * c1
            end if
          end if
 !
 !        tl = hcan / max(ustar(i), epsilon) *  &
-         tl = hcan / ustar(i) *  &
-              (0.256 * ( (zcan3(kc) - z2(km+1) - 0.75 * hcan) / hcan) + &
-              (0.492 * exp (-(0.256 * (zcan3(kc) - z2(km+1)) / hcan) / 0.492) ) )
+         tl = hcan / max(ustar(i), epsilon) *  &
+              (0.256 * ( (zcan3(kc) - z2(km+1) - 0.75 * hcan) / &
+                         max(hcan, epsilon)) + &
+              (0.492 * exp (-(0.256 * (zcan3(kc) - z2(km+1)) / &
+                                      max(hcan, epsilon)) / 0.492) ) )
 
          dkt_can3(kk)  = (sigw * sigw * tl) * ktr
          dku_can3(kk)  = (sigw * sigw * tl) * kur

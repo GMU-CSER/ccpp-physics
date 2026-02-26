@@ -351,6 +351,7 @@
       parameter(cptke1=0.07,cptke2=0.142,cptke3=0.071)
       parameter(dkmaxles=300.0,sclmin=500.,sclmax=2500.)
       parameter(elmhfac=1.5,elmhmx=1000.,ckh=0.4)
+      real(kind=kind_phys), parameter :: epsilon = 1.e-10
 !
 !PCC_CANOPY------------------------------------
       if (do_canopy) then
@@ -386,12 +387,12 @@
 !
       gravi = 1.0 / grav
       g = grav
-      gocp = g / cp
+      gocp = g / max(cp, epsilon)
 !     cont=cp/g
 !     conq=hvap/g
 !     conw=1.0/g  ! for del in pa
 !!    parameter(cont=1000.*cp/g,conq=1000.*hvap/g,conw=1000./g) !kpa
-      elocp  = hvap / cp
+      elocp  = hvap / max(cp, epsilon)
       el2orc = hvap * hvap / (rv * cp)
 !
 !************************************************************************
@@ -468,7 +469,7 @@
 !>  - Compute reciprocal of \f$ \Delta z \f$ (rdzt)
       do k = 1,km1
         do i=1,im
-          rdzt(i,k) = 1.0 / (zl(i,k+1) - zl(i,k))
+          rdzt(i,k) = 1.0 / max(zl(i,k+1) - zl(i,k), epsilon)
           prn(i,k)  = pr0
         enddo
       enddo
@@ -486,13 +487,13 @@
 !
       do i=1,im
         kx1(i) = 1
-        tx1(i) = 1.0 / prsi(i,1)
+        tx1(i) = 1.0 / max(prsi(i,1), epsilon)
         tx2(i) = tx1(i)
         if(gdx(i) >= xkgdx) then
           xkzm_hx(i) = xkzm_h
           xkzm_mx(i) = xkzm_m
         else
-          tem  = gdx(i) / xkgdx
+          tem  = gdx(i) / max(xkgdx, epsilon)
           xkzm_hx(i) = xkzm_h * tem
           xkzm_mx(i) = xkzm_m * tem
         endif
@@ -519,7 +520,8 @@
               xkzmo(i,k) = xkzm_mx(i)
               kx1(i)     = k + 1
             else
-              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / prsi(i,k)
+              if (k == kx1(i) .and. k > 1) tx2(i) = 1.0 / max(prsi(i,k),
+     &                                                   epsilon)
               tem1 = 1.0 - prsi(i,k+1) * tx2(i)
               tem1 = tem1 * tem1 * 5.0
               xkzmo(i,k) = xkzm_mx(i) * min(1.0, exp(-tem1))
@@ -531,7 +533,8 @@
 !>  - Some output variables and logical flags are initialized
       do i = 1,im
          z0(i)    = 0.01 * zorl(i)
-         rho_a(i) = prsl(i,1)/(rd*t1(i,1)*(1.+fv*max(q1(i,1,1),qmin)))
+         rho_a(i) = prsl(i,1)/max(rd*t1(i,1)*
+     &            (1.+fv*max(q1(i,1,1),qmin)), epsilon)
          dusfc(i) = 0.
          dvsfc(i) = 0.
          dtsfc(i) = 0.
@@ -561,10 +564,10 @@
 !! roughness length
 !
       do i = 1,im
-        tem = (sigmaf(i) - vegflo) / (vegfup - vegflo)
+        tem = (sigmaf(i) - vegflo) / max(vegfup - vegflo, epsilon)
         tem = min(max(tem, 0.), 1.)
         tem1 = sqrt(tem)
-        ptem = (z0(i) - z0lo) / (z0up - z0lo)
+        ptem = (z0(i) - z0lo) / max(z0up - z0lo, epsilon)
         ptem = min(max(ptem, 0.), 1.)
         vez0fun(i) = (1. + vc0 * tem1) * (1. + zc0 * ptem)
       enddo
@@ -573,7 +576,7 @@
 !! \f$\theta_v\f$(thvx),\f$\theta_{l,v}\f$ (thlvx) including ice water
       do k=1,km
         do i=1,im
-          pix(i,k)   = psk(i) / prslk(i,k)
+          pix(i,k)   = psk(i) / max(prslk(i,k), epsilon)
           theta(i,k) = t1(i,k) * pix(i,k)
           qice(i,k)  = 0.0
           qliq(i,k)  = 0.0
@@ -605,7 +608,7 @@
           ptem1      = elocp * pix(i,k) * max(q1(i,k,1),qmin)
           thetae(i,k)= theta(i,k) +  ptem1
 !         gotvx(i,k) = g / tvx(i,k)
-          gotvx(i,k) = g / thvx(i,k)
+          gotvx(i,k) = g / max(thvx(i,k), epsilon)
         enddo
       enddo
 !
@@ -616,8 +619,9 @@
           plyr(i,k)   = 0.01 * prsl(i,k)   ! pa to mb (hpa)
 !  --- ...  compute relative humidity
           es  = 0.01 * fpvs(t1(i,k))       ! fpvs in pa
-          qs  = max(qmin, eps * es / (plyr(i,k) + epsm1*es))
-          rhly(i,k) = max(0.0, min(1.0, max(qmin, q1(i,k,1))/qs))
+          qs  = max(qmin, eps * es / max(plyr(i,k) + epsm1*es, epsilon))
+          rhly(i,k) = max(0.0, min(1.0, max(qmin, q1(i,k,1))/
+     &                max(qs, epsilon)))
           qstl(i,k) = qs
         enddo
       enddo
@@ -629,7 +633,7 @@
           if (qlx(i,k) > clwt) then
             onemrh = max(1.e-10, 1.0-rhly(i,k))
             tem1   = min(max((onemrh*qstl(i,k))**0.49,0.0001),1.0)
-            tem1   = cql / tem1
+            tem1   = cql / max(tem1, epsilon)
             value  = max(min( tem1*qlx(i,k), 50.0), 0.0)
             tem2   = sqrt(sqrt(rhly(i,k)))
             cfly(i,k) = min(max(tem2*(1.0-exp(-value)), 0.0), 1.0)
@@ -645,10 +649,10 @@
           tem1 = 0.5 * (t1(i,k) + t1(i,k+1))
           tem2 = 0.5 * (qstl(i,k) + qstl(i,k+1))
           cfh  = min(cfly(i,k+1),0.5*(cfly(i,k)+cfly(i,k+1)))
-          alp  = g / tem
-          gamma = el2orc * tem2 / (tem1**2)
-          epsi  = tem1 / elocp
-          beta  = (1. + gamma*epsi*(1.+fv)) / (1. + gamma)
+          alp  = g / max(tem, epsilon)
+          gamma = el2orc * tem2 / max(tem1**2, epsilon)
+          epsi  = tem1 / max(elocp, epsilon)
+          beta  = (1. + gamma*epsi*(1.+fv)) / max(1. + gamma, epsilon)
           chx   = cfh * alp * beta + (1. - cfh) * alp
           cqx   = cfh * alp * hvap * (beta - epsi)
           cqx   = cqx + (1. - cfh) * fv * g
@@ -710,15 +714,15 @@
           thermal(i) = thvs(i)
           tem = sqrt(u10m(i)**2+v10m(i)**2)
           tem = max(tem, 1.)
-          robn = tem / (f0 * z0(i))
+          robn = tem / max(f0 * z0(i), epsilon)
           tem1 = 1.e-7 * robn
-          crb(i) = 0.16 * (tem1 ** (-0.18))
+          crb(i) = 0.16 * (max(tem1, epsilon) ** (-0.18))
           crb(i) = max(min(crb(i), crbmax), crbmin)
         endif
       enddo
 !>  - Compute \f$\frac{\Delta t}{\Delta z}\f$ , \f$u_*\f$
       do i=1,im
-         dtdz1(i)  = dt2 / (zi(i,2)-zi(i,1))
+         dtdz1(i)  = dt2 / max(zi(i,2)-zi(i,1), epsilon)
       enddo
 !
       do i=1,im
@@ -759,12 +763,13 @@
 !           rbup(i) = (thvx(i,k)-thermal(i))*
 !    &                (g*zl(i,k)/thvx(i,1))/spdk2
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*zl(i,k)/thlvx(i,1))/spdk2
+     &                (g*zl(i,k)/max(thlvx(i,1), epsilon))/spdk2
           else if (tc_pbl == 1) then
             spdk2   = max((u1(i,k)-u1(i,1))**2+(v1(i,k)-v1(i,1))**2,1.)
      &                + bfac*ustar(i)**2
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*(zl(i,k)-zl(i,1))/thlvx(i,1))/spdk2
+     &                (g*(zl(i,k)-zl(i,1))/max(thlvx(i,1), epsilon))/
+     &                spdk2
           endif
           kpblx(i) = k
           flg(i)  = rbup(i) > crb(i)
@@ -782,7 +787,7 @@
           elseif(rbup(i) <= crb(i)) then
             rbint = 1.
           else
-            rbint = (crb(i)-rbdn(i))/(rbup(i)-rbdn(i))
+            rbint = (crb(i)-rbdn(i))/max(rbup(i)-rbdn(i), epsilon)
           endif
           hpblx(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
           if(hpblx(i) < zi(i,kpblx(i))) kpblx(i)=kpblx(i)-1
@@ -840,12 +845,13 @@
 !           rbup(i) = (thvx(i,k)-thermal(i))*
 !    &                (g*zl(i,k)/thvx(i,1))/spdk2
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*zl(i,k)/thlvx(i,1))/spdk2
+     &                (g*zl(i,k)/max(thlvx(i,1), epsilon))/spdk2
           else if (tc_pbl == 1) then
             spdk2   = max((u1(i,k)-u1(i,1))**2+(v1(i,k)-v1(i,1))**2,1.)
      &                + bfac*ustar(i)**2
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*(zl(i,k)-zl(i,1))/thlvx(i,1))/spdk2
+     &                (g*(zl(i,k)-zl(i,1))/max(thlvx(i,1), epsilon))/
+     &                spdk2
           endif
           kpblx(i) = k
           flg(i)  = rbup(i) > crb(i)
@@ -860,7 +866,7 @@
           elseif(rbup(i) <= crb(i)) then
             rbint = 1.
           else
-            rbint = (crb(i)-rbdn(i))/(rbup(i)-rbdn(i))
+            rbint = (crb(i)-rbdn(i))/max(rbup(i)-rbdn(i), epsilon)
           endif
           hpblx(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
           if(hpblx(i) < zi(i,kpblx(i))) kpblx(i)=kpblx(i)-1
@@ -888,7 +894,7 @@
       enddo
       do i = 1, im
         if(tkemean(i) > 0. .and. sumx(i) > 0.) then
-          tkemean(i) = tkemean(i) / sumx(i)
+          tkemean(i) = tkemean(i) / max(sumx(i), epsilon)
         endif
       enddo
 !
@@ -900,9 +906,9 @@
       kps = max(kmpbl, kmscu)
       do k = 2, kps
       do i = 1, im
-        dz = zi(i,k+1) - zi(i,k)
-        tem = (0.5*(u1(i,k-1)-u1(i,k+1))/dz)**2
-        tem1 = tem+(0.5*(v1(i,k-1)-v1(i,k+1))/dz)**2
+        dz = max(zi(i,k+1) - zi(i,k), epsilon)
+        tem = (0.5*(u1(i,k-1)-u1(i,k+1))/max(dz, epsilon))**2
+        tem1 = tem+(0.5*(v1(i,k-1)-v1(i,k+1))/max(dz, epsilon))**2
         wush(i,k) = csmf * sqrt(tem1)
       enddo
       enddo
@@ -917,7 +923,7 @@
 !!    where \f$F_m\f$ and \f$F_h\f$ are surface Monin-Obukhov stability functions calculated in sfc_diff.f and 
 !!    \f$L\f$ is the Obukhov length.
       do i=1,im
-         zol(i) = max(rbsoil(i)*fm(i)*fm(i)/fh(i),rimin)
+         zol(i) = max(rbsoil(i)*fm(i)*fm(i)/max(fh(i), epsilon),rimin)
          if(sfcflg(i)) then
            zol(i) = min(zol(i),-zfmin)
          else
@@ -934,12 +940,12 @@
 !!     \f[
 !!     \phi_m=\phi_t=(1+5\frac{0.1h}{L})
 !!     \f]
-         zol1 = zol(i)*sfcfrac*hpbl(i)/zl(i,1)
+         zol1 = zol(i)*sfcfrac*hpbl(i)/max(zl(i,1), epsilon)
          if(sfcflg(i)) then
-           tem     = 1.0 / (1. - aphi16*zol1)
+           tem     = 1.0 / max(1. - aphi16*zol1, epsilon)
            phih(i) = sqrt(tem)
            phim(i) = sqrt(phih(i))
-           tem1    = 1.0 / (1. - aphi16*zol(i))
+           tem1    = 1.0 / max(1. - aphi16*zol(i), epsilon)
            phihs(i) = sqrt(tem1)
            phims(i) = sqrt(phihs(i))
          else
@@ -984,8 +990,8 @@
 !
       do i = 1,im
          if(pcnvflg(i)) then
-           hgamt(i) = heat(i)/wscale(i)
-           hgamq(i) = evap(i)/wscale(i)
+           hgamt(i) = heat(i)/max(wscale(i), epsilon)
+           hgamq(i) = evap(i)/max(wscale(i), epsilon)
            vpert(i) = hgamt(i) + hgamq(i)*fv*theta(i,1)
            vpert(i) = max(vpert(i),0.)
            tem = min(cfac*vpert(i),gamcrt)
@@ -1010,12 +1016,13 @@
           if (tc_pbl == 0) then
             spdk2   = max((u1(i,k)**2+v1(i,k)**2),1.)
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*zl(i,k)/thlvx(i,1))/spdk2
+     &                (g*zl(i,k)/max(thlvx(i,1), epsilon))/spdk2
           else if (tc_pbl == 1) then
             spdk2   = max((u1(i,k)-u1(i,1))**2+(v1(i,k)-v1(i,1))**2,1.)
      &                + bfac*ustar(i)**2
             rbup(i) = (thlvx(i,k)-thermal(i))*
-     &                (g*(zl(i,k)-zl(i,1))/thlvx(i,1))/spdk2
+     &                (g*(zl(i,k)-zl(i,1))/max(thlvx(i,1), epsilon))/
+     &                spdk2
           endif
           kpbl(i) = k
           flg(i)  = rbup(i) > crb(i)
@@ -1030,7 +1037,7 @@
            elseif(rbup(i) <= crb(i)) then
              rbint = 1.
            else
-             rbint = (crb(i)-rbdn(i))/(rbup(i)-rbdn(i))
+             rbint = (crb(i)-rbdn(i))/max(rbup(i)-rbdn(i), epsilon)
            endif
            hpbl(i) = zl(i,k-1) + rbint*(zl(i,k)-zl(i,k-1))
            if(hpbl(i) < zi(i,kpbl(i))) then
@@ -1051,7 +1058,7 @@
 !
       do i = 1, im
         tem = phims(i) * phims(i)
-        ris(i) = zol(i) * phihs(i) / tem
+        ris(i) = zol(i) * phihs(i) / max(tem, epsilon)
         ris(i) = max(ris(i), rimin)
       enddo
       do k = 1, km1
@@ -1062,16 +1069,16 @@
           else
             if(k == 1) then
               tem = gotvx(i,1) * (thlvx(i,1)-thvs(i))
-              tem1 = tem / zl(i,1)
+              tem1 = tem / max(zl(i,1), epsilon)
               tem1 = 0.5 * (tem1 + bf(i,1))
               ptem = max((u1(i,1)**2+v1(i,1)**2), 1.)
-              ptem1 = ptem / (zl(i,1) * zl(i,1))
+              ptem1 = ptem / max(zl(i,1) * zl(i,1), epsilon)
               ptem1 = 0.5 * (ptem1 + shr2(i,1))
-              ri = max(tem1/ptem1, rimin)
+              ri = max(tem1/max(ptem1, epsilon), rimin)
             else
               tem1 = 0.5 * (bf(i,k-1) + bf(i,k))
               ptem1 = 0.5 * (shr2(i,k-1) + shr2(i,k))
-              ri = max(tem1/ptem1, rimin)
+              ri = max(tem1/max(ptem1, epsilon), rimin)
             endif
           endif
           if(ri < 0) then
@@ -1105,7 +1112,7 @@
       enddo
       do i = 1, im
         if(tkemean(i) > 0. .and. sumx(i) > 0.) then
-          tkemean(i) = tkemean(i) / sumx(i)
+          tkemean(i) = tkemean(i) / max(sumx(i), epsilon)
         endif
       enddo
 !
@@ -1228,7 +1235,7 @@
 !>  - taper off MF in high-wind conditions
         do i = 1,im
           tem = sqrt(u10m(i)**2+v10m(i)**2)
-          mffac = (1. - MIN(MAX(tem - 20.0, 0.0), 10.0)/10.)
+          mffac = (1. - MIN(MAX(tem - 20.0, 0.0), 10.0)/10.0)
           do k = 1, km
             xmf(i,k) = xmf(i,k)*mffac
             xmfd(i,k) = xmfd(i,k)*mffac
@@ -1242,10 +1249,10 @@
       do k = 1, kmpbl
         do i = 1, im
           if(k < kpbl(i)) then
-            tem = phih(i)/phim(i)
+            tem = phih(i)/max(phim(i), epsilon)
             ptem = sfcfrac*hpbl(i)
             tem1 = max(zi(i,k+1)-ptem, 0.)
-            tem2 = tem1 / (hpbl(i) - ptem)
+            tem2 = tem1 / max(hpbl(i) - ptem, epsilon)
             if(pcnvflg(i)) then
               tem = min(tem, pr0)
               prn(i,k) = tem + (pr0 - tem) * tem2
@@ -1319,7 +1326,7 @@
               e2(i,n+1) = e2(i,n) + (tem1 - tem2) * dz
               zlup = zlup + dz
               if(e2(i,n+1) < 0.) then
-                ptem = e2(i,n+1) / (e2(i,n+1) - e2(i,n))
+                ptem = e2(i,n+1) / min(e2(i,n+1) - e2(i,n), -epsilon)
                 zlup = zlup - ptem * dz
                 zlup = max(zlup, 0.)
                 mlenflg = .false.
@@ -1334,7 +1341,7 @@
                 dz = zl(i,1)
                 tem = tsea(i)*(1.+fv*max(q1(i,1,1),qmin))
                 tem1 = 2.*gotvx(i,n)*(tem-thvx(i,k))
-                tem2 = ustar(i)*phims(i)/(vk*dz)
+                tem2 = ustar(i)*phims(i)/max(vk*dz, epsilon)
                 tem2 = cs0*sqrt(e2(i,n))*tem2
                 e2(i,n-1) = e2(i,n) + (tem1 - tem2) * dz
               else
@@ -1345,7 +1352,7 @@
               endif
               zldn = zldn + dz
               if(e2(i,n-1) < 0.) then
-                ptem = e2(i,n-1) / (e2(i,n-1) - e2(i,n))
+                ptem = e2(i,n-1) / min(e2(i,n-1) - e2(i,n), -epsilon)
                 zldn = zldn - ptem * dz
                 zldn = max(zldn, 0.)
                 mlenflg = .false.
@@ -1398,11 +1405,11 @@
             zk = tem / 3.7
           else
             ptem = 1. + 2.7 * zol(i)
-            zk = tem / ptem
+            zk = tem / max(ptem, epsilon)
           endif
 
           if (tc_pbl == 0) then
-            elm(i,k) = zk*rlam(i,k)/(rlam(i,k)+zk)
+            elm(i,k) = zk*rlam(i,k)/max(rlam(i,k)+zk, epsilon)
 !>  - If sfc_rlm=1, use zk for elm within surface layer
             if ( sfc_rlm == 1 ) then
               if ( sfcflg(i) .and.
@@ -1410,7 +1417,9 @@
             endif
           else if (tc_pbl == 1) then
             ! new blending method for mixing length
-            elm(i,k) = sqrt( 1.0/( 1.0/(zk**2)+1.0/(rlam(i,k)**2) ) )
+            elm(i,k) = sqrt( 1.0/max( 1.0/max(zk**2, epsilon)
+     &                              +1.0/max(rlam(i,k)**2, epsilon),
+     &                               epsilon ) )
           endif
 
 !
@@ -1446,7 +1455,7 @@
            if (zi(i,k+1) <= ptem) then
              ri = ris(i)
            else
-             ri = max(bf(i,k)/shr2(i,k),rimin)
+             ri = max(bf(i,k)/max(shr2(i,k), epsilon),rimin)
            endif
            if(ri < 0) then
              tem = 2. * ri - pr0
@@ -1456,7 +1465,7 @@
              epotte = ri / tem
            endif
            tkeh(i,k) = tteh(i,k) * (1. - epotte)
-           tesq(i,k) = tkeh(i,k) / sqrt(tteh(i,k))
+           tesq(i,k) = tkeh(i,k) / sqrt(max(tteh(i,k), epsilon))
         enddo
       enddo
 !
@@ -1474,15 +1483,15 @@
         do i = 1, im
            tem = 0.5 * (elm(i,k) + elm(i,k+1))
            tem = tem * tesq(i,k)
-           ri = max(bf(i,k)/shr2(i,k),rimin)
+           ri = max(bf(i,k)/max(shr2(i,k), epsilon),rimin)
            if(k < kpbl(i)) then
              if(pcnvflg(i)) then
                dku(i,k) = ckz(i,k) * tem
-               dkt(i,k) = dku(i,k) / prn(i,k)
+               dkt(i,k) = dku(i,k) / max(prn(i,k), epsilon)
              else
                if(ri < 0.) then ! unstable regime
                  dku(i,k) = ckz(i,k) * tem
-                 dkt(i,k) = dku(i,k) / prn(i,k)
+                 dkt(i,k) = dku(i,k) / max(prn(i,k), epsilon)
                else             ! stable regime
                  dkt(i,k) = chz(i,k) * tem
                  dku(i,k) = dkt(i,k) * prn(i,k)
@@ -1507,7 +1516,7 @@
                else
                  tem1 = ckz(i,k) * tem
                endif
-               ptem1 = tem1 / prscu
+               ptem1 = tem1 / max(prscu, epsilon)
                dku(i,k) = max(dku(i,k), tem1)
                dkt(i,k) = max(dkt(i,k), ptem1)
              endif
@@ -1531,16 +1540,16 @@
 ! calculate thetal
         do k=1,km
           do i=1,im
-          pix(i,k)   = psk(i) / prslk(i,k)
+          pix(i,k)   = psk(i) / max(prslk(i,k), epsilon)
           theta(i,k) = t1(i,k) * pix(i,k)
-          tem=theta(i,k)/t1(i,k)
+          tem=theta(i,k)/max(t1(i,k), epsilon)
           if(ntiw > 0) then
             tem1=max(q1(i,k,ntcw),qlmin)+
      &         max(q1(i,k,ntiw)+q1(i,k,5)+q1(i,k,6),qlmin)
-            thetal(i,k)=theta(i,k)-(hvap+hfus)/cp*tem*tem1
+            thetal(i,k)=theta(i,k)-(hvap+hfus)/max(cp, epsilon)*tem*tem1
           else
             tem1=max(q1(i,k,ntcw),qlmin)
-            thetal(i,k)=theta(i,k)-hvap/cp*tem*tem1
+            thetal(i,k)=theta(i,k)-hvap/max(cp, epsilon)*tem*tem1
           endif
           enddo
         enddo
@@ -1569,7 +1578,8 @@
             endif
 ! calculate km, kh, and kq for LES
             dku_les(i,k)=0.1*elm_les*sqrt(tkeh(i,k))
-            dkt_les(i,k)=(1.0+2.0*elm_les/tem1)*dku_les(i,k)
+            dkt_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))
+     &                   *dku_les(i,k)
             dkq_les(i,k)=dkt_les(i,k)
             dku_les(i,k) = min(dku_les(i,k),dkmaxles)
             dkt_les(i,k) = min(dkt_les(i,k),dkmaxles)
@@ -1612,17 +1622,17 @@
           scl(i)=max(scl(i), sclmin)
           scl(i)=min(scl(i), sclmax)
           scl(i)=max(scl(i), hpbl(i))
-          pfdx(i)=gdx(i)/scl(i)
+          pfdx(i)=gdx(i)/max(scl(i), epsilon)
         enddo
 !
         do i = 1, im
 !            partition function for local fluxes
           pfl(i)=cpl1*(pfdx(i)**2+cpl2*pfdx(i)**0.5-cpl3)/
-     &           (pfdx(i)**2+cpl4*pfdx(i)**0.5+cpl5)+cpl6
+     &           max(pfdx(i)**2+cpl4*pfdx(i)**0.5+cpl5, epsilon)+cpl6
           pfl(i)=min(max(pfl(i),0.0),1.0)
 !            partition function for TKE
           pftke(i)=(pfdx(i)**2+cptke1*pfdx(i)**(2./3.))/
-     &         (pfdx(i)**2+cptke2*pfdx(i)**(2./3.)+cptke3)
+     &         max(pfdx(i)**2+cptke2*pfdx(i)**(2./3.)+cptke3, epsilon)
           pftke(i)=min(max(pftke(i),0.0),1.0)
         enddo
 !
@@ -1650,11 +1660,12 @@
         do k = 1, km1
           do i = 1, im
             if(k > 1) then
-              dz = zl(i,k+1) - zl(i,k-1)
-              tem=gotvx(i,k)*(thetal(i,k+1)-thetal(i,k-1))/dz
+              dz = max(zl(i,k+1) - zl(i,k-1), epsilon)
+              tem=gotvx(i,k)*(thetal(i,k+1)-thetal(i,k-1))/max(dz,
+     &                                                    epsilon)
             else
-              dz = zl(i,k+1)
-              tem=gotvx(i,k)*(thetal(i,k+1)-thvs(i))/dz
+              dz = max(zl(i,k+1), epsilon)
+              tem=gotvx(i,k)*(thetal(i,k+1)-thvs(i))/max(dz, epsilon)
             endif
             dz = zi(i,k+1) - zi(i,k)
             tem1=(garea(i)*dz)**h1
@@ -1668,7 +1679,8 @@
             ele_les(i,k)=elm_les
 ! calculate km, kh, and kq for LES
             dku_les(i,k)=0.1*elm_les*sqrt(tke(i,k))
-            dkq_les(i,k)=(1.0+2.0*elm_les/tem1)*dku_les(i,k)
+            dkq_les(i,k)=(1.0+2.0*elm_les/max(tem1, epsilon))
+     &                   *dku_les(i,k)
             dku_les(i,k) = min(dku_les(i,k),dkmaxles)
             dkq_les(i,k) = min(dkq_les(i,k),dkmaxles)
           enddo
@@ -1717,7 +1729,7 @@
             tem = 0.5 * (ckz(i,k-1) + ckz(i,k))
             tem1 = 0.5 * (xkzmo(i,k-1) + xkzmo(i,k))
           endif
-          ptem = tem1 / (tem * elm(i,k))
+          ptem = tem1 / max(tem * elm(i,k), epsilon)
           tkmnz(i,k) = ptem * ptem
           tkmnz(i,k) = min(tkmnz(i,k), tkbmx)
           tkmnz(i,k) = max(tkmnz(i,k), tkmin)
@@ -1782,7 +1794,7 @@
             endif
             ptem2 = ptem2 + ptem
 !
-            tem2 = stress(i)*ustar(i)*phims(i)/(vk*zl(i,1))
+            tem2 = stress(i)*ustar(i)*phims(i)/max(vk*zl(i,1), epsilon)
             shrp = 0.5 * (tem1 + ptem1 + ptem2 + tem2)
           else
             tem1 = -dkt(i,k-1) * bf(i,k-1)
@@ -1872,20 +1884,20 @@
 !
       if(sa3dtke) then
 !The following is for SA-3D-TKE
-       dtn = dt2 / float(ndt)
+       dtn = dt2 / max(float(ndt), epsilon)
        do n = 1, ndt
        do k = 1,km1
         do i=1,im
            tem = sqrt(te(i,k))
 !        calculating 3D TKE transport and pressure correlation
-           ptem1 = ce0 / ele(i,k)
+           ptem1 = ce0 / max(ele(i,k), epsilon)
            dz = zi(i,k+1) - zi(i,k)
            tem1=(garea(i)*dz)**h1
-           tem2=0.19+0.51*ele_les(i,k)/tem1
-           ptem2= tem2 / ele_les(i,k)
+           tem2=0.19+0.51*ele_les(i,k)/max(tem1, epsilon)
+           ptem2= tem2 / max(ele_les(i,k), epsilon)
            ptem=(1.0-pftke(i))*ptem2+pftke(i)*ptem1
            disste = ptem * te(i,k) * tem
-           tem1 = prod(i,k) + te(i,k) / dtn
+           tem1 = prod(i,k) + te(i,k) / max(dtn, epsilon)
            disste=max(min(disste, tem1), 0.)
            if(.not. tte_edmf) diss(i,k) = disste
 !          tem=2.0*def_3(i,k)
@@ -1898,14 +1910,14 @@
        enddo
        enddo
       else
-       dtn = dt2 / float(ndt)
+       dtn = dt2 / max(float(ndt), epsilon)
        do n = 1, ndt
        do k = 1,km1
         do i=1,im
            tem = sqrt(te(i,k))
-           ptem = ce0 / ele(i,k)
+           ptem = ce0 / max(ele(i,k), epsilon)
            disste = ptem * te(i,k) * tem
-           tem1 = prod(i,k) + te(i,k) / dtn
+           tem1 = prod(i,k) + te(i,k) / max(dtn, epsilon)
            disste = max(min(disste, tem1), 0.)
            if(.not. tte_edmf) diss(i,k) = disste
            te(i,k) = te(i,k) + dtn * (prod(i,k)-disste)
@@ -1923,15 +1935,15 @@
         do i = 1, im
           tem = sqrt(tke(i,k))
           if(sa3dtke) then
-            ptem1 = ce0 / ele(i,k)
+            ptem1 = ce0 / max(ele(i,k), epsilon)
             dz = zi(i,k+1) - zi(i,k)
             tem1=(garea(i)*dz)**h1
-            tem2=0.19+0.51*ele_les(i,k)/tem1
-            ptem2= tem2 / ele_les(i,k)
+            tem2=0.19+0.51*ele_les(i,k)/max(tem1, epsilon)
+            ptem2= tem2 / max(ele_les(i,k), epsilon)
             ptem=(1.0-pftke(i))*ptem2+pftke(i)*ptem1
             diss(i,k) = ptem * tke(i,k) * tem
           else
-            ptem = ce0 / ele(i,k)
+            ptem = ce0 / max(ele(i,k), epsilon)
             diss(i,k) = ptem * tke(i,k) * tem
           endif
         enddo
@@ -1953,11 +1965,11 @@
       do k = 2, kmpbl
         do i = 1, im
           if (pcnvflg(i) .and. k <= kpbl(i)) then
-             dz   = zl(i,k) - zl(i,k-1)
+             dz   = max(zl(i,k) - zl(i,k-1), epsilon)
              tem  = 0.5 * xlamue(i,k-1) * dz
              factor = 1. + tem
              qcko(i,k,ntke)=((1.-tem)*qcko(i,k-1,ntke)+tem*
-     &                (te(i,k)+te(i,k-1)))/factor
+     &                (te(i,k)+te(i,k-1)))/max(factor, epsilon)
           endif
         enddo
       enddo
@@ -1965,11 +1977,11 @@
         do i = 1, im
           if (scuflg(i) .and. k < krad(i)) then
             if(k >= mrad(i)) then
-              dz = zl(i,k+1) - zl(i,k)
+              dz = max(zl(i,k+1) - zl(i,k), epsilon)
               tem  = 0.5 * xlamde(i,k) * dz
               factor = 1. + tem
               qcdo(i,k,ntke)=((1.-tem)*qcdo(i,k+1,ntke)+tem*
-     &                 (te(i,k)+te(i,k+1)))/factor
+     &                 (te(i,k)+te(i,k+1)))/max(factor, epsilon)
             endif
           endif
         enddo
@@ -2024,14 +2036,14 @@
                 rrkp = 0.
                 if(abs(q_diff(i,k,n)) > 1.e-22)
      &                 rrkp = q_diff(i,k+1,n) / q_diff(i,k,n)
-                phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
+               phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
                 q_half(i,k,n) = q1(i,k+1,n) +
      &                     phkp*(qh(i,k,n)-q1(i,k+1,n))
               elseif (tem < 0.) then
                 rrkp = 0.
                 if(abs(q_diff(i,k,n)) > 1.e-22)
      &                 rrkp = q_diff(i,k-1,n) / q_diff(i,k,n)
-                phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
+               phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
                 q_half(i,k,n) = q1(i,k,n) +
      &                    phkp*(qh(i,k,n)-q1(i,k,n))
               endif
@@ -2081,14 +2093,14 @@
               rrkp = 0.
               if(abs(e_diff(i,k)) > 1.e-22)
      &               rrkp = e_diff(i,k+1) / e_diff(i,k)
-              phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
+             phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
               e_half(i,k) = te(i,k+1) +
      &                   phkp*(tei(i,k)-te(i,k+1))
             elseif (tem < 0.) then
               rrkp = 0.
               if(abs(e_diff(i,k)) > 1.e-22)
      &               rrkp = e_diff(i,k-1) / e_diff(i,k)
-              phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
+             phkp = (rrkp+abs(rrkp)) / (1.+abs(rrkp))
               e_half(i,k) = te(i,k) +
      &                  phkp*(tei(i,k)-te(i,k))
             endif
@@ -2106,8 +2118,8 @@
 !
       do k = 1,km1
         do i=1,im
-          dtodsd  = dt2/del(i,k)
-          dtodsu  = dt2/del(i,k+1)
+          dtodsd  = dt2/max(del(i,k), epsilon)
+          dtodsu  = dt2/max(del(i,k+1), epsilon)
           dsig    = prsl(i,k)-prsl(i,k+1)
           rdz     = rdzt(i,k)
           tem1    = dsig * dkq(i,k) * rdz
@@ -2188,9 +2200,9 @@ c
         if(pcnvflg(i) .or. scuflg(i)) then
           if(tsump(i) > 0. .and. tsumn(i) < 0.) then
             if(tsump(i) > abs(tsumn(i))) then
-              rtnp(i) = tsumn(i) / tsump(i)
+              rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
             else
-              rtnp(i) = tsump(i) / tsumn(i)
+              rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
             endif
           endif
         endif
@@ -2241,9 +2253,9 @@ c
       do i = 1,im
         if(tsump(i) > 0. .and. tsumn(i) < 0.) then
           if(tsump(i) > abs(tsumn(i))) then
-            rtnp(i) = tsumn(i) / tsump(i)
+            rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
           else
-            rtnp(i) = tsump(i) / tsumn(i)
+            rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
           endif
         endif
       enddo
@@ -2296,8 +2308,8 @@ c
 c
       do k = 1,km1
         do i = 1,im
-          dtodsd  = dt2/del(i,k)
-          dtodsu  = dt2/del(i,k+1)
+          dtodsd  = dt2/max(del(i,k), epsilon)
+          dtodsu  = dt2/max(del(i,k+1), epsilon)
           dsig    = prsl(i,k)-prsl(i,k+1)
           rdz     = rdzt(i,k)
           tem1    = dsig * dkt(i,k) * rdz
@@ -2362,8 +2374,8 @@ c
           is = (n-1) * km
           do k = 1, km1
             do i = 1, im
-              dtodsd = dt2/del(i,k)
-              dtodsu = dt2/del(i,k+1)
+              dtodsd = dt2/max(del(i,k), epsilon)
+              dtodsu = dt2/max(del(i,k+1), epsilon)
               dsig  = prsl(i,k)-prsl(i,k+1)
               tem2  = dsig * rdzt(i,k)
 !
@@ -2439,9 +2451,9 @@ c
         if(pcnvflg(i) .or. scuflg(i)) then
           if(tsump(i) > 0. .and. tsumn(i) < 0.) then
             if(tsump(i) > abs(tsumn(i))) then
-              rtnp(i) = tsumn(i) / tsump(i)
+              rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
             else
-              rtnp(i) = tsump(i) / tsumn(i)
+              rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
             endif
           endif
         endif
@@ -2493,9 +2505,9 @@ c
       do i = 1,im
         if(tsump(i) > 0. .and. tsumn(i) < 0.) then
           if(tsump(i) > abs(tsumn(i))) then
-            rtnp(i) = tsumn(i) / tsump(i)
+            rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
           else
-            rtnp(i) = tsump(i) / tsumn(i)
+            rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
           endif
         endif
       enddo
@@ -2624,9 +2636,9 @@ c
             if(pcnvflg(i) .or. scuflg(i)) then
               if(tsump(i) > 0. .and. tsumn(i) < 0.) then
                 if(tsump(i) > abs(tsumn(i))) then
-                  rtnp(i) = tsumn(i) / tsump(i)
+                  rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
                 else
-                  rtnp(i) = tsump(i) / tsumn(i)
+                  rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
                 endif
               endif
             endif
@@ -2678,9 +2690,9 @@ c
           do i = 1,im
             if(tsump(i) > 0. .and. tsumn(i) < 0.) then
               if(tsump(i) > abs(tsumn(i))) then
-                rtnp(i) = tsumn(i) / tsump(i)
+                rtnp(i) = tsumn(i) / max(tsump(i), epsilon)
               else
-                rtnp(i) = tsump(i) / tsumn(i)
+                rtnp(i) = tsump(i) / min(tsumn(i), -epsilon)
               endif
             endif
           enddo
@@ -2784,8 +2796,8 @@ c
         do k = 1,km1
           do i = 1,im
 !           tem = min(diss(i,k), dspmax)
-!           ttend = tem / cp
-            ttend = diss(i,k) / cp
+!           ttend = tem / max(cp, epsilon)
+            ttend = diss(i,k) / max(cp, epsilon)
             tdt(i,k) = tdt(i,k) + dspfac * ttend
           enddo
         enddo
@@ -2794,7 +2806,7 @@ c
           if(idtend>=1) then
             do k = 1,km1
               do i = 1,im
-                ttend = diss(i,k) / cp
+                ttend = diss(i,k) / max(cp, epsilon)
                 dtend(i,k,idtend) = dtend(i,k,idtend)+dspfac*ttend*delt
               enddo
             enddo
@@ -2805,15 +2817,15 @@ c
 !> ## Compute tridiagonal matrix elements for momentum
 c
       do i=1,im
-         ad(i,1) = 1.0 + dtdz1(i) * stress(i) / spd1(i)
+         ad(i,1) = 1.0 + dtdz1(i) * stress(i) / max(spd1(i), epsilon)
          f1(i,1) = u1(i,1)
          f2(i,1) = v1(i,1)
       enddo
 c
       do k = 1,km1
         do i=1,im
-          dtodsd  = dt2/del(i,k)
-          dtodsu  = dt2/del(i,k+1)
+          dtodsd  = dt2/max(del(i,k), epsilon)
+          dtodsu  = dt2/max(del(i,k+1), epsilon)
           dsig    = prsl(i,k)-prsl(i,k+1)
           rdz     = rdzt(i,k)
           tem1    = dsig * dku(i,k) * rdz
@@ -2879,13 +2891,17 @@ c
       if (use_oceanuv) then
         do i = 1,im
           spd1_m=sqrt( (u1(i,1)-usfco(i))**2+(v1(i,1)-vsfco(i))**2 )
-          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))/spd1_m
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))/spd1_m
+          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))
+     &               /max(spd1_m, epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))
+     &               /max(spd1_m, epsilon)
         enddo
       else
         do i = 1,im
-          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/spd1(i)
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/spd1(i)
+          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/
+     &               max(spd1(i), epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/
+     &               max(spd1(i), epsilon)
         enddo
       endif
 !

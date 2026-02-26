@@ -13,6 +13,7 @@
       use mfscuq_mod
       !PCC_CANOPY_utilities
       use canopy_utils_mod
+      real(kind=kind_phys), parameter :: epsilon = 1.e-10
 
       contains
 
@@ -3095,13 +3096,17 @@ c
       if (use_oceanuv) then
         do i = 1,im
           spd1_m=sqrt( (u1(i,1)-usfco(i))**2+(v1(i,1)-vsfco(i))**2 )
-          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))/spd1_m
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))/spd1_m
+          dusfc(i) = -1.*rho_a(i)*stress(i)*(u1(i,1)-usfco(i))
+     &               /max(spd1_m, epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*(v1(i,1)-vsfco(i))
+     &               /max(spd1_m, epsilon)
         enddo
       else
         do i = 1,im
-          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/spd1(i)
-          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/spd1(i)
+          dusfc(i) = -1.*rho_a(i)*stress(i)*u1(i,1)/
+     &               max(spd1(i), epsilon)
+          dvsfc(i) = -1.*rho_a(i)*stress(i)*v1(i,1)/
+     &               max(spd1(i), epsilon)
         enddo
       endif
 !
